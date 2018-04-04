@@ -2,7 +2,7 @@ appName = "hello-world"
 
 def deleteEverything(instanceName) {
     // Except imagestream
-    openshiftDeleteResourceByLabels(types: "replicationcontroller,deployment,build,pod,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
+    openshift.selector("replicationcontroller,deployment,build,pod,buildconfig,deploymentconfig,service,route", [app: instanceName]).delete("--ignore-not-found")
 }
 
 pipeline {
