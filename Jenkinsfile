@@ -73,8 +73,11 @@ pipeline {
                                 ])
                             }
 
-                            // create a new application from the template
+                            // Create a new application from the template
                             openshift.newApp("${pwd()}/abar.yml", "-p", "NAME=${instanceName}")
+
+                            // Set a custom env variable on DeploymentConfig
+                            openshift.raw("env dc/${instanceName} DEPLOYMENT_ENV=${instanceName}")
                         }
                     }
                 }
