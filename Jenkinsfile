@@ -10,12 +10,13 @@ pipeline {
         timeout(time: 25, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
-    agent {
-      node {
-        // spin up a slave pod to run this build on
-        label 'base'
-      }
-    }
+    agent any
+    //agent {
+    //  node {
+    //    // spin up a slave pod to run this build on
+    //    label 'base'
+    //  }
+    //}
     stages {
         stage('preamble') {
             steps {
@@ -29,6 +30,8 @@ pipeline {
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
 
+                    sh("gitCommit = ${gitCommit}")
+                    sh("gitShortCommit = ${gitShortCommit}")
                     sh("printenv")
 
                     githubNotify status: "PENDING", context: "build", description: 'Starting pipeline', targetUrl: "${env.RUN_DISPLAY_URL}"
@@ -129,7 +132,7 @@ pipeline {
         stage('teardown') {
             steps {
                 input message: 'Finished using the web site? (Click "Proceed" to teardown preview instance and tag resulting image)'
-                openshiftDeleteResourceByLabels(types: "is,bc,dc,svc,route", keys: "template", values: instanceName)
+                deleteEverything(instanceName)
             }
         }
 
@@ -138,7 +141,7 @@ pipeline {
         failure {
             deleteEverything(instanceName)
             githubNotify status: "FAILURE", context: "build", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
-            githubNotify status: "FAILURE", context: "preview", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
+            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!"
         }
     }
 } // pipeline
