@@ -71,7 +71,16 @@ pipeline {
         stage('build') {
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Running build and tests', targetUrl: "${env.RUN_DISPLAY_URL}"
-                openshiftBuild(bldCfg: instanceName, commitID: gitCommit, showBuildLogs: 'true')
+
+                if (CHANGE_ID) {
+                    refSpec = "refs/pull/${CHANGE_ID}/head"
+                } else {
+                    refSpec = gitCommit
+                }
+
+                sh("echo Building based on refSpec = ${refSpec}")
+
+                openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true')
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
