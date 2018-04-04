@@ -116,6 +116,13 @@ pipeline {
             }
         }
         stage('teardown') {
+            when {
+                allOf {
+                    // Do not tear down "master" and "staging" branches
+                    expression { env.BRANCH_NAME != "master" }
+                    expression { env.BRANCH_NAME != "staging" }
+                }
+            }
             steps {
                 input message: 'Finished using the web site? (Click "Proceed" to teardown preview instance)'
                 deleteEverything(instanceName)
