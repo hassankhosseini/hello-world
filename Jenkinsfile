@@ -98,31 +98,6 @@ pipeline {
             }
         }
 
-        // Now that the build (and tests) are successful,
-        // we can tag based on branch name if it's not a pull request.
-        stage('tag') {
-            when {
-                allOf {
-                    expression { env.CHANGE_ID == null }
-                    expression { env.CHANGE_TARGET == null }
-                }
-            }
-            steps {
-                openshiftTag(
-                  srcStream: instanceName,
-                  srcTag: "latest",
-                  destStream: "${appName}-${env.BRANCH_NAME}",
-                  destTag: gitShortCommit
-                )
-                openshiftTag(
-                  srcStream: "${appName}-${env.BRANCH_NAME}",
-                  srcTag: gitShortCommit,
-                  destStream: "${appName}-${env.BRANCH_NAME}",
-                  destTag: "latest"
-                )
-            }
-        }
-
         // Deploy a preview instance for this branch
         // pipeline will be paused until a dev "Proceed"s with teardown stage.
         stage('deploy') {
@@ -147,6 +122,30 @@ pipeline {
             }
         }
 
+        // Now that the build (and tests) and deployments are successful,
+        // we can tag based on branch name (if it's not a pull request).
+        stage('tag') {
+            when {
+                allOf {
+                    expression { env.CHANGE_ID == null }
+                    expression { env.CHANGE_TARGET == null }
+                }
+            }
+            steps {
+                openshiftTag(
+                  srcStream: instanceName,
+                  srcTag: "latest",
+                  destStream: "${appName}-${env.BRANCH_NAME}",
+                  destTag: gitShortCommit
+                )
+                openshiftTag(
+                  srcStream: "${appName}-${env.BRANCH_NAME}",
+                  srcTag: gitShortCommit,
+                  destStream: "${appName}-${env.BRANCH_NAME}",
+                  destTag: "latest"
+                )
+            }
+        }
     }
     post {
         failure {
