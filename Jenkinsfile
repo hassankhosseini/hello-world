@@ -120,10 +120,16 @@ pipeline {
         stage('deploy') {
             steps {
                 githubNotify status: "PENDING", context: "preview", description: 'Deploying preview', targetUrl: ""
-                openshiftDeploy(depCfg: instanceName)
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
+                            def dc = openshift.selector("dc", instanceName)
+                            def rmScale = dc.scale(1)
+                            def rmRollout = dc.rollout()
+                            openshift.selector("dc", instanceName).related('pods').untilEach(1) {
+                                return (it.object().status.phase == "Running")
+                            }
+
                             previewRouteHost = openshift.selector("route", instanceName).object().spec.host
                         }
                     }
