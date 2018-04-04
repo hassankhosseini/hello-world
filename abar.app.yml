@@ -17,7 +17,7 @@ parameters:
 - displayName: Git Address
   name: APP_GIT_ADDRESS
   required: true
-  value: http://github.com/aramalipoor/hello_world.git
+  value: http://github.com/aramalipoor/hello-world.git
 
 objects:
 
@@ -52,7 +52,7 @@ objects:
     triggers:
     - type: ConfigChange
     - imageChangeParams:
-        automatic: true
+        automatic: false
         containerNames:
         - ${NAME}
         from:

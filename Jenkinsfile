@@ -1,20 +1,22 @@
 appName = "hello-world"
-githubCredentialID = "aram-github-account"
-githubAccount = "aramalipoor"
-githubRepo = "hello-world"
+
+def deleteEverything(instanceName) {
+  openshiftDeleteResourceByLabels(types: "deployment,build,pod,imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
+}
 
 pipeline {
     options {
-        // set a timeout of 20 minutes for this pipeline
-        timeout(time: 20, unit: 'MINUTES')
+        // set a timeout of 25 minutes for this pipeline
+        timeout(time: 25, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
-    agent {
-      node {
-        // spin up a slave pod to run this build on
-        label 'base'
-      }
-    }
+    agent any
+    //agent {
+    //  node {
+    //    // spin up a slave pod to run this build on
+    //    label 'base'
+    //  }
+    //}
     stages {
         stage('preamble') {
             steps {
@@ -28,6 +30,8 @@ pipeline {
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
 
+                    sh("echo gitCommit = ${gitCommit}")
+                    sh("echo gitShortCommit = ${gitShortCommit}")
                     sh("printenv")
 
                     githubNotify status: "PENDING", context: "build", description: 'Starting pipeline', targetUrl: "${env.RUN_DISPLAY_URL}"
@@ -44,7 +48,7 @@ pipeline {
         stage('cleanup') {
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Cleaning up old resources', targetUrl: "${env.RUN_DISPLAY_URL}"
-                openshiftDeleteResourceByLabels(types: "is,bc,dc,svc,route", keys: "template", values: instanceName)
+                deleteEverything(instanceName)
             }
         }
 
@@ -67,7 +71,18 @@ pipeline {
         stage('build') {
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Running build and tests', targetUrl: "${env.RUN_DISPLAY_URL}"
-                openshiftBuild(bldCfg: instanceName, commitID: gitCommit, showBuildLogs: 'true')
+
+                script {
+                    if (env.CHANGE_ID) {
+                        refSpec = "refs/pull/${env.CHANGE_ID}/head"
+                    } else {
+                        refSpec = gitCommit
+                    }
+                }
+
+                sh("echo Building based on refSpec = ${refSpec}")
+
+                openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true', waitTime: '30', waitUnit: 'm')
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
@@ -127,15 +142,17 @@ pipeline {
         }
         stage('teardown') {
             steps {
-                input message: 'Finished using the web site? (Click "Proceed" to teardown preview instance and tag resulting image)'
-                openshiftDeleteResourceByLabels(types: "is,bc,dc,svc,route", keys: "template", values: instanceName)
+                input message: 'Finished using the web site? (Click "Proceed" to teardown preview instance)'
+                deleteEverything(instanceName)
             }
         }
 
     }
     post {
         failure {
-            githubNotify status: "FAILURE", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
+            deleteEverything(instanceName)
+            githubNotify status: "FAILURE", context: "build", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
+            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!"
         }
     }
 } // pipeline
