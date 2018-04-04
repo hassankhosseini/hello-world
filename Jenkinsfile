@@ -150,9 +150,10 @@ pipeline {
     }
     post {
         failure {
-            deleteEverything(instanceName)
             githubNotify status: "FAILURE", context: "build", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
             githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!"
+            input message: 'Finished debugging? (Click "Proceed" to teardown builds and deployments)'
+            deleteEverything(instanceName)
         }
     }
 } // pipeline
