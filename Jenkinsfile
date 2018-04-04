@@ -22,7 +22,7 @@ pipeline {
       }
     }
     stages {
-        stage('preamble') {
+        stage('prepare') {
             steps {
                 script {
                     //
@@ -49,7 +49,7 @@ pipeline {
                     // Post pending commit statuses to GitHub
                     //
                     githubNotify status: "PENDING", context: "build", description: 'Starting pipeline'
-                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build', targetUrl: "#"
+                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build'
 
                     //
                     // Prepare image streams in OpenShift
@@ -64,11 +64,11 @@ pipeline {
                     openshift.withCluster() {
                         openshift.withProject() {
                             // Create imagestream if not exist yet
-                            if (openshift.selector("imagestream", isName).count() == 0) {
+                            if (openshift.selector("imagestream", imageStreamName).count() == 0) {
                                 openshift.create([
                                     "kind": "ImageStream",
                                     "metadata": [
-                                        "name": "${isName}"
+                                        "name": "${imageStreamName}"
                                     ]
                                 ])
                             }
@@ -145,7 +145,7 @@ pipeline {
         // pipeline will be paused until a dev "Proceed"s with teardown stage.
         stage('deploy') {
             steps {
-                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview', targetUrl: "#"
+                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
 
                 script {
                     openshift.withCluster() {
@@ -191,7 +191,7 @@ pipeline {
                 openshiftTag(
                   srcStream: imageStreamName,
                   srcTag: imageStreamTag,
-                  srcStream: imageStreamName,
+                  destStream: imageStreamName,
                   destTag: "latest"
                 )
             }
@@ -200,7 +200,7 @@ pipeline {
     post {
         failure {
             githubNotify status: "FAILURE", context: "build", description: "Pipeline failed!"
-            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!", targetUrl: "#"
+            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!"
         }
     }
 } // pipeline
