@@ -1,7 +1,7 @@
 appName = "hello-world"
 githubCredentialID = "aram-github-account"
 githubAccount = "aramalipoor"
-githubRepo = "hello_world"
+githubRepo = "hello-world"
 
 pipeline {
     options {
