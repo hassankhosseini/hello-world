@@ -60,6 +60,19 @@ pipeline {
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
+                            // Create imagestream if not exist yet
+                            if (openshift.selector("imagestream", instanceName).count() == 0) {
+                                openshift.create([
+                                    "kind": "ImageStream",
+                                    "metadata": [
+                                        "name": instanceName,
+                                        "labels": [
+                                            "app": instanceName,
+                                        ]
+                                    ]
+                                ])
+                            }
+
                             // create a new application from the template
                             openshift.newApp("${pwd()}/abar.yml", "-p", "NAME=${instanceName}")
                         }

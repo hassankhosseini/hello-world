@@ -96,14 +96,6 @@ objects:
     wildcardPolicy: None
 
 - apiVersion: v1
-  kind: ImageStream
-  metadata:
-    generation: 1
-    name: ${NAME}
-    labels:
-      app: ${NAME}
-
-- apiVersion: v1
   kind: BuildConfig
   metadata:
     name: ${NAME}
