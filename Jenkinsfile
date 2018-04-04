@@ -3,6 +3,10 @@ githubCredentialID = "aram-github-account"
 githubAccount = "aramalipoor"
 githubRepo = "hello-world"
 
+def deleteEverything(instanceName) {
+  openshiftDeleteResourceByLabels(types: "is,bc,dc,svc,route", keys: "template", values: instanceName)
+}
+
 pipeline {
     options {
         // set a timeout of 20 minutes for this pipeline
@@ -44,7 +48,7 @@ pipeline {
         stage('cleanup') {
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Cleaning up old resources', targetUrl: "${env.RUN_DISPLAY_URL}"
-                openshiftDeleteResourceByLabels(types: "is,bc,dc,svc,route", keys: "template", values: instanceName)
+                deleteEverything(instanceName)
             }
         }
 
@@ -135,7 +139,9 @@ pipeline {
     }
     post {
         failure {
-            githubNotify status: "FAILURE", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
+            deleteEverything(instanceName)
+            githubNotify status: "FAILURE", context: "build", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
+            githubNotify status: "FAILURE", context: "preview", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
         }
     }
 } // pipeline
