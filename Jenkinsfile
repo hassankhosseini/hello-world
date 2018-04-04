@@ -2,7 +2,7 @@ appName = "hello-world"
 
 def deleteEverything(instanceName) {
     // Except imagestream
-    openshiftDeleteResourceByLabels(types: "replicationcontroller,deployment,build,pod,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
+    openshift.selector("replicationcontroller,deployment,build,pod,buildconfig,deploymentconfig,service,route", [app: instanceName]).delete("--ignore-not-found")
 }
 
 pipeline {
@@ -120,11 +120,17 @@ pipeline {
         stage('deploy') {
             steps {
                 githubNotify status: "PENDING", context: "preview", description: 'Deploying preview', targetUrl: ""
-                openshiftDeploy(depCfg: instanceName)
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
+                            def rm = openshift.selector("dc", instanceName).rollout()
+                            openshift.selector("dc", instanceName).related('pods').untilEach(1) {
+                                return (it.object().status.phase == "Running")
+                            }
+
                             previewRouteHost = openshift.selector("route", instanceName).object().spec.host
+
+                            echo "Preview is live on: http://${previewRouteHost}"
                         }
                     }
                 }
