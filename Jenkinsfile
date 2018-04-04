@@ -4,7 +4,7 @@ githubAccount = "aramalipoor"
 githubRepo = "hello-world"
 
 def deleteEverything(instanceName) {
-  openshiftDeleteResourceByLabels(types: "is,bc,dc,svc,route", keys: "template", values: instanceName)
+  openshiftDeleteResourceByLabels(types: "imagestream,buildconfig,deploymentconfig,service,route", keys: "template", values: instanceName)
 }
 
 pipeline {
