@@ -12,4 +12,8 @@ describe "#hello" do
   it "returns the correct message" do
     expect(@hello.message).to eq("Hello World!")
   end
+
+  it "is always ok" do
+    expect(1).to eq(1)
+  end
 end
