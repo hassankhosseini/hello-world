@@ -1,7 +1,4 @@
 appName = "hello-world"
-githubCredentialID = "aram-github-account"
-githubAccount = "aramalipoor"
-githubRepo = "hello-world"
 
 def deleteEverything(instanceName) {
   openshiftDeleteResourceByLabels(types: "imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
