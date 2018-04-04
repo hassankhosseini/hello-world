@@ -25,25 +25,54 @@ pipeline {
         stage('preamble') {
             steps {
                 script {
+                    //
+                    // Determine (escaped) branch name and instance name
+                    //
                     if (env.CHANGE_ID) {
-                      instanceName = "${appName}-pr${env.CHANGE_ID}"
+                        targetBranch = "pr${env.CHANGE_ID}"
                     } else {
-                      instanceName = "${appName}-${env.BRANCH_NAME}".replaceAll("/","-")
+                        targetBranch = "${env.BRANCH_NAME}".replaceAll("/","-")
                     }
 
+                    instanceName = "${appName}-${targetBranch}"
+
+                    //
+                    // Find git commit sha1 useful in various steps
+                    //
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
 
                     echo ("gitCommit = ${gitCommit}")
                     echo ("gitShortCommit = ${gitShortCommit}")
 
-                    sh("printenv")
-
+                    //
+                    // Post pending commit statuses to GitHub
+                    //
                     githubNotify status: "PENDING", context: "build", description: 'Starting pipeline'
-                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build', targetUrl: ""
+                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build', targetUrl: "#"
 
+                    //
+                    // Prepare image streams in OpenShift
+                    //
+                    if (env.CHANGE_ID) {
+                      imageStreamName = "${appName}-pr"
+                      imageStreamTag = env.CHANGE_ID
+                    } else {
+                      imageStreamName = "${appName}-${targetBranch}"
+                      imageStreamTag = gitShortCommit
+                    }
                     openshift.withCluster() {
                         openshift.withProject() {
+                            // Create imagestream if not exist yet
+                            if (openshift.selector("imagestream", isName).count() == 0) {
+                                openshift.create([
+                                    "kind": "ImageStream",
+                                    "metadata": [
+                                        "name": "${isName}"
+                                    ]
+                                ])
+                            }
+
                             echo "Building, testing and deploying for ${instanceName} in project ${openshift.project()}"
                         }
                     }
@@ -64,21 +93,12 @@ pipeline {
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
-                            // Create imagestream if not exist yet
-                            if (openshift.selector("imagestream", instanceName).count() == 0) {
-                                openshift.create([
-                                    "kind": "ImageStream",
-                                    "metadata": [
-                                        "name": instanceName,
-                                        "labels": [
-                                            "app": instanceName,
-                                        ]
-                                    ]
-                                ])
-                            }
-
-                            // Create a new application from the template
-                            openshift.newApp("${pwd()}/abar.yml", "-p", "NAME=${instanceName}")
+                            openshift.newApp(
+                              "${pwd()}/abar.yml",
+                              "-p", "NAME=${instanceName}",
+                              "-p", "IMAGESTREAM_NAME=${imageStreamName}",
+                              "-p", "IMAGESTREAM_TAG=${imageStreamTag}"
+                            )
 
                             // Set a custom env variable on DeploymentConfig
                             openshift.raw("env dc/${instanceName} DEPLOYMENT_ENV=${instanceName}")
@@ -104,6 +124,7 @@ pipeline {
                 echo ("Building based on refSpec = ${refSpec}")
 
                 openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true', waitTime: '30', waitUnit: 'min')
+
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
@@ -115,6 +136,7 @@ pipeline {
                         }
                     }
                 }
+
                 githubNotify status: "SUCCESS", context: "build", description: 'Successful build and tests'
             }
         }
@@ -123,21 +145,23 @@ pipeline {
         // pipeline will be paused until a dev "Proceed"s with teardown stage.
         stage('deploy') {
             steps {
-                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview', targetUrl: ""
+                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview', targetUrl: "#"
+
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
                             def rm = openshift.selector("dc", instanceName).rollout().latest()
+
                             openshift.selector("dc", instanceName).related('pods').untilEach(1) {
                                 return (it.object().status.phase == "Running")
                             }
 
                             previewRouteHost = openshift.selector("route", instanceName).object().spec.host
-
                             echo "Preview is live on: http://${previewRouteHost}"
                         }
                     }
                 }
+
                 githubNotify status: "SUCCESS", context: "preview", description: "Preview is online on http://${previewRouteHost}", targetUrl: "http://${previewRouteHost}"
             }
         }
@@ -150,31 +174,24 @@ pipeline {
                 }
             }
             steps {
-                input message: 'Finished using the web site? (Click "Proceed" to teardown preview instance)'
+                input message: 'Finished viewing changes on http://${previewRouteHost}? (Click "Proceed" to teardown preview instance)'
                 deleteEverything(instanceName)
             }
         }
 
         // Now that the build (and tests) and deployments are successful,
-        // we can tag based on branch name (if it's not a pull request).
+        // We will promote latest tag (for branches).
         stage('tag') {
             when {
                 allOf {
                     expression { env.CHANGE_ID == null }
-                    expression { env.CHANGE_TARGET == null }
                 }
             }
             steps {
                 openshiftTag(
-                  srcStream: instanceName,
-                  srcTag: "latest",
-                  destStream: "${appName}-${env.BRANCH_NAME}",
-                  destTag: gitShortCommit
-                )
-                openshiftTag(
-                  srcStream: "${appName}-${env.BRANCH_NAME}",
-                  srcTag: gitShortCommit,
-                  destStream: "${appName}-${env.BRANCH_NAME}",
+                  srcStream: imageStreamName,
+                  srcTag: imageStreamTag,
+                  srcStream: imageStreamName,
                   destTag: "latest"
                 )
             }
@@ -183,7 +200,7 @@ pipeline {
     post {
         failure {
             githubNotify status: "FAILURE", context: "build", description: "Pipeline failed!"
-            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!", targetUrl: ""
+            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!", targetUrl: "#"
         }
     }
 } // pipeline

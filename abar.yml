@@ -10,6 +10,14 @@ parameters:
   name: NAME
   required: true
   value: hello-world
+- displayName: Imagestream Name
+  name: IMAGESTREAM_NAME
+  required: true
+  value: hello-world
+- displayName: Imagestream Tag
+  name: IMAGESTREAM_TAG
+  required: true
+  value: latest
 - displayName: Port
   name: PORT
   required: true
@@ -57,7 +65,7 @@ objects:
         - ${NAME}
         from:
           kind: ImageStreamTag
-          name: ${NAME}:latest
+          name: ${IMAGESTREAM_NAME}:${IMAGESTREAM_TAG}
       type: ImageChange
 
 - apiVersion: v1
@@ -107,7 +115,7 @@ objects:
     output:
       to:
         kind: ImageStreamTag
-        name: ${NAME}:latest
+        name: ${IMAGESTREAM_NAME}:${IMAGESTREAM_TAG}
     runPolicy: Serial
     source:
       git:
