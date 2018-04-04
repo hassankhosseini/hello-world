@@ -1,7 +1,8 @@
 appName = "hello-world"
 
 def deleteEverything(instanceName) {
-  openshiftDeleteResourceByLabels(types: "replicationcontroller,deployment,build,pod,imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
+    // Except imagestream
+    openshiftDeleteResourceByLabels(types: "replicationcontroller,deployment,build,pod,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
 }
 
 pipeline {
@@ -60,7 +61,7 @@ pipeline {
                     openshift.withCluster() {
                         openshift.withProject() {
                             // create a new application from the template
-                            openshift.newApp("${pwd()}/abar.app.yml", "-p", "NAME=${instanceName}")
+                            openshift.newApp("${pwd()}/abar.yml", "-p", "NAME=${instanceName}")
                         }
                     }
                 }
