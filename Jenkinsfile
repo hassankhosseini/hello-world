@@ -1,7 +1,7 @@
 appName = "hello-world"
 
 def deleteEverything(instanceName) {
-  openshiftDeleteResourceByLabels(types: "imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
+  openshiftDeleteResourceByLabels(types: "build,pod,imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
 }
 
 pipeline {
@@ -30,8 +30,8 @@ pipeline {
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
 
-                    sh("gitCommit = ${gitCommit}")
-                    sh("gitShortCommit = ${gitShortCommit}")
+                    sh("echo gitCommit = ${gitCommit}")
+                    sh("echo gitShortCommit = ${gitShortCommit}")
                     sh("printenv")
 
                     githubNotify status: "PENDING", context: "build", description: 'Starting pipeline', targetUrl: "${env.RUN_DISPLAY_URL}"
@@ -73,8 +73,8 @@ pipeline {
                 githubNotify status: "PENDING", context: "build", description: 'Running build and tests', targetUrl: "${env.RUN_DISPLAY_URL}"
 
                 script {
-                    if (CHANGE_ID) {
-                        refSpec = "refs/pull/${CHANGE_ID}/head"
+                    if (env.CHANGE_ID) {
+                        refSpec = "refs/pull/${env.CHANGE_ID}/head"
                     } else {
                         refSpec = gitCommit
                     }
@@ -82,7 +82,7 @@ pipeline {
 
                 sh("echo Building based on refSpec = ${refSpec}")
 
-                openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true')
+                openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true', waitTime: '30', waitUnit: 'm')
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
@@ -142,7 +142,7 @@ pipeline {
         }
         stage('teardown') {
             steps {
-                input message: 'Finished using the web site? (Click "Proceed" to teardown preview instance and tag resulting image)'
+                input message: 'Finished using the web site? (Click "Proceed" to teardown preview instance)'
                 deleteEverything(instanceName)
             }
         }
