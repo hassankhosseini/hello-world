@@ -72,10 +72,12 @@ pipeline {
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Running build and tests', targetUrl: "${env.RUN_DISPLAY_URL}"
 
-                if (CHANGE_ID) {
-                    refSpec = "refs/pull/${CHANGE_ID}/head"
-                } else {
-                    refSpec = gitCommit
+                script {
+                    if (CHANGE_ID) {
+                        refSpec = "refs/pull/${CHANGE_ID}/head"
+                    } else {
+                        refSpec = gitCommit
+                    }
                 }
 
                 sh("echo Building based on refSpec = ${refSpec}")
