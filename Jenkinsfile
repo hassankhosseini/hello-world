@@ -35,8 +35,8 @@ pipeline {
 
                     sh("printenv")
 
-                    githubNotify status: "PENDING", context: "build", description: 'Starting pipeline', targetUrl: "${env.RUN_DISPLAY_URL}"
-                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build'
+                    githubNotify status: "PENDING", context: "build", description: 'Starting pipeline'
+                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build', targetUrl: ""
 
                     openshift.withCluster() {
                         openshift.withProject() {
@@ -48,7 +48,7 @@ pipeline {
         }
         stage('cleanup') {
             steps {
-                githubNotify status: "PENDING", context: "build", description: 'Cleaning up old resources', targetUrl: "${env.RUN_DISPLAY_URL}"
+                githubNotify status: "PENDING", context: "build", description: 'Cleaning up old resources'
                 deleteEverything(instanceName)
             }
         }
@@ -56,7 +56,7 @@ pipeline {
         // Create a new app stack to fully build, deploy and serve this branch
         stage('create') {
             steps {
-                githubNotify status: "PENDING", context: "build", description: 'Creating new resources', targetUrl: "${env.RUN_DISPLAY_URL}"
+                githubNotify status: "PENDING", context: "build", description: 'Creating new resources'
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
@@ -84,7 +84,7 @@ pipeline {
         // Build on a new BuildConfig which also runs tests via spec.postCommit.script
         stage('build') {
             steps {
-                githubNotify status: "PENDING", context: "build", description: 'Running build and tests', targetUrl: "${env.RUN_DISPLAY_URL}"
+                githubNotify status: "PENDING", context: "build", description: 'Running build and tests'
 
                 script {
                     if (env.CHANGE_ID) {
@@ -108,7 +108,7 @@ pipeline {
                         }
                     }
                 }
-                githubNotify status: "SUCCESS", context: "build", description: 'Successful build and tests', targetUrl: "${env.RUN_DISPLAY_URL}"
+                githubNotify status: "SUCCESS", context: "build", description: 'Successful build and tests'
             }
         }
 
@@ -116,8 +116,7 @@ pipeline {
         // pipeline will be paused until a dev "Proceed"s with teardown stage.
         stage('deploy') {
             steps {
-                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
-                openshiftScale(depCfg: instanceName, replicaCount: "1", verifyReplicaCount: "false")
+                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview', targetUrl: ""
                 openshiftDeploy(depCfg: instanceName)
                 script {
                     openshift.withCluster() {
@@ -170,8 +169,8 @@ pipeline {
     }
     post {
         failure {
-            githubNotify status: "FAILURE", context: "build", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
-            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!"
+            githubNotify status: "FAILURE", context: "build", description: "Pipeline failed!"
+            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!", targetUrl: ""
         }
     }
 } // pipeline
