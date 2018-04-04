@@ -1,7 +1,7 @@
 appName = "hello-world"
 
 def deleteEverything(instanceName) {
-  openshiftDeleteResourceByLabels(types: "deployment,build,pod,imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
+  openshiftDeleteResourceByLabels(types: "replicationcontroller,deployment,build,pod,imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
 }
 
 pipeline {
@@ -10,13 +10,12 @@ pipeline {
         timeout(time: 25, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
-    agent any
-    //agent {
-    //  node {
-    //    // spin up a slave pod to run this build on
-    //    label 'base'
-    //  }
-    //}
+    agent {
+      node {
+        // spin up a slave pod to run this build on
+        label 'base'
+      }
+    }
     stages {
         stage('preamble') {
             steps {
@@ -30,8 +29,9 @@ pipeline {
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
 
-                    sh("echo gitCommit = ${gitCommit}")
-                    sh("echo gitShortCommit = ${gitShortCommit}")
+                    echo ("gitCommit = ${gitCommit}")
+                    echo ("gitShortCommit = ${gitShortCommit}")
+
                     sh("printenv")
 
                     githubNotify status: "PENDING", context: "build", description: 'Starting pipeline', targetUrl: "${env.RUN_DISPLAY_URL}"
@@ -80,9 +80,9 @@ pipeline {
                     }
                 }
 
-                sh("echo Building based on refSpec = ${refSpec}")
+                echo ("Building based on refSpec = ${refSpec}")
 
-                openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true', waitTime: '30', waitUnit: 'm')
+                openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true', waitTime: '30', waitUnit: 'min')
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
@@ -100,7 +100,7 @@ pipeline {
 
         // Now that the build (and tests) are successful,
         // we can tag based on branch name if it's not a pull request.
-        stage('tag-branch') {
+        stage('tag') {
             when {
                 allOf {
                     expression { env.CHANGE_ID == null }
@@ -127,7 +127,7 @@ pipeline {
         // pipeline will be paused until a dev "Proceed"s with teardown stage.
         stage('deploy') {
             steps {
-                githubNotify status: "SUCCESS", context: "preview", description: 'Deploying preview'
+                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
                 openshiftScale(depCfg: instanceName, replicaCount: "1")
                 openshiftDeploy(depCfg: instanceName)
                 script {
@@ -137,7 +137,7 @@ pipeline {
                         }
                     }
                 }
-                githubNotify status: "SUCCESS", context: "preview", description: 'Preview is online', targetUrl: "http://${previewRouteHost}"
+                githubNotify status: "SUCCESS", context: "preview", description: "Preview is online on http://${previewRouteHost}", targetUrl: "http://${previewRouteHost}"
             }
         }
         stage('teardown') {
