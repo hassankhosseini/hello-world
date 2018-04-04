@@ -1,7 +1,7 @@
 appName = "hello-world"
 
 def deleteEverything(instanceName) {
-  openshiftDeleteResourceByLabels(types: "build,pod,imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
+  openshiftDeleteResourceByLabels(types: "deployment,build,pod,imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
 }
 
 pipeline {
