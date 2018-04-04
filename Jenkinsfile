@@ -1,7 +1,8 @@
 appName = "hello-world"
 
 def deleteEverything(instanceName) {
-  openshiftDeleteResourceByLabels(types: "replicationcontroller,deployment,build,pod,imagestream,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
+    // Except imagestream
+    openshiftDeleteResourceByLabels(types: "replicationcontroller,deployment,build,pod,buildconfig,deploymentconfig,service,route", keys: "app", values: instanceName)
 }
 
 pipeline {
@@ -59,8 +60,21 @@ pipeline {
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
+                            // Create imagestream if not exist yet
+                            if (openshift.selector("imagestream", instanceName).count() == 0) {
+                                openshift.create([
+                                    "kind": "ImageStream",
+                                    "metadata": [
+                                        "name": instanceName,
+                                        "labels": [
+                                            "app": instanceName,
+                                        ]
+                                    ]
+                                ])
+                            }
+
                             // create a new application from the template
-                            openshift.newApp("${pwd()}/abar.app.yml", "-p", "NAME=${instanceName}")
+                            openshift.newApp("${pwd()}/abar.yml", "-p", "NAME=${instanceName}")
                         }
                     }
                 }
@@ -98,8 +112,39 @@ pipeline {
             }
         }
 
-        // Now that the build (and tests) are successful,
-        // we can tag based on branch name if it's not a pull request.
+        // Deploy a preview instance for this branch
+        // pipeline will be paused until a dev "Proceed"s with teardown stage.
+        stage('deploy') {
+            steps {
+                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
+                openshiftScale(depCfg: instanceName, replicaCount: "1", verifyReplicaCount: "false")
+                openshiftDeploy(depCfg: instanceName)
+                script {
+                    openshift.withCluster() {
+                        openshift.withProject() {
+                            previewRouteHost = openshift.selector("route", instanceName).object().spec.host
+                        }
+                    }
+                }
+                githubNotify status: "SUCCESS", context: "preview", description: "Preview is online on http://${previewRouteHost}", targetUrl: "http://${previewRouteHost}"
+            }
+        }
+        stage('teardown') {
+            when {
+                allOf {
+                    // Do not tear down "master" and "staging" branches
+                    expression { env.BRANCH_NAME != "master" }
+                    expression { env.BRANCH_NAME != "staging" }
+                }
+            }
+            steps {
+                input message: 'Finished using the web site? (Click "Proceed" to teardown preview instance)'
+                deleteEverything(instanceName)
+            }
+        }
+
+        // Now that the build (and tests) and deployments are successful,
+        // we can tag based on branch name (if it's not a pull request).
         stage('tag') {
             when {
                 allOf {
@@ -122,35 +167,9 @@ pipeline {
                 )
             }
         }
-
-        // Deploy a preview instance for this branch
-        // pipeline will be paused until a dev "Proceed"s with teardown stage.
-        stage('deploy') {
-            steps {
-                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
-                openshiftScale(depCfg: instanceName, replicaCount: "1")
-                openshiftDeploy(depCfg: instanceName)
-                script {
-                    openshift.withCluster() {
-                        openshift.withProject() {
-                            previewRouteHost = openshift.selector("route", instanceName).object().spec.host
-                        }
-                    }
-                }
-                githubNotify status: "SUCCESS", context: "preview", description: "Preview is online on http://${previewRouteHost}", targetUrl: "http://${previewRouteHost}"
-            }
-        }
-        stage('teardown') {
-            steps {
-                input message: 'Finished using the web site? (Click "Proceed" to teardown preview instance)'
-                deleteEverything(instanceName)
-            }
-        }
-
     }
     post {
         failure {
-            deleteEverything(instanceName)
             githubNotify status: "FAILURE", context: "build", targetUrl: "${env.RUN_DISPLAY_URL}", description: "Pipeline failed!"
             githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!"
         }

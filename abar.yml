@@ -29,7 +29,7 @@ objects:
     labels:
       app: ${NAME}
   spec:
-    replicas: 1
+    replicas: 0
     selector:
       app: ${NAME}
       deploymentconfig: ${NAME}
@@ -94,14 +94,6 @@ objects:
       name: ${NAME}
       weight: 100
     wildcardPolicy: None
-
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    generation: 1
-    name: ${NAME}
-    labels:
-      app: ${NAME}
 
 - apiVersion: v1
   kind: BuildConfig
