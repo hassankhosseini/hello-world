@@ -123,9 +123,7 @@ pipeline {
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
-                            def dc = openshift.selector("dc", instanceName)
-                            def rmScale = dc.scale(1)
-                            def rmRollout = dc.rollout()
+                            def rm = openshift.selector("dc", instanceName).rollout()
                             openshift.selector("dc", instanceName).related('pods').untilEach(1) {
                                 return (it.object().status.phase == "Running")
                             }
