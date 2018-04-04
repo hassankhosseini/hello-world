@@ -30,8 +30,9 @@ pipeline {
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
 
-                    sh("echo gitCommit = ${gitCommit}")
-                    sh("echo gitShortCommit = ${gitShortCommit}")
+                    echo ("gitCommit = ${gitCommit}")
+                    echo ("gitShortCommit = ${gitShortCommit}")
+
                     sh("printenv")
 
                     githubNotify status: "PENDING", context: "build", description: 'Starting pipeline', targetUrl: "${env.RUN_DISPLAY_URL}"
@@ -80,7 +81,7 @@ pipeline {
                     }
                 }
 
-                sh("echo Building based on refSpec = ${refSpec}")
+                echo ("Building based on refSpec = ${refSpec}")
 
                 openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true', waitTime: '30', waitUnit: 'min')
                 script {
