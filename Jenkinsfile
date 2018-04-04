@@ -10,13 +10,12 @@ pipeline {
         timeout(time: 25, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
-    agent any
-    //agent {
-    //  node {
-    //    // spin up a slave pod to run this build on
-    //    label 'base'
-    //  }
-    //}
+    agent {
+      node {
+        // spin up a slave pod to run this build on
+        label 'base'
+      }
+    }
     stages {
         stage('preamble') {
             steps {
