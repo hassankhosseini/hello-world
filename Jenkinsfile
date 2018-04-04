@@ -131,6 +131,8 @@ pipeline {
                             }
 
                             previewRouteHost = openshift.selector("route", instanceName).object().spec.host
+
+                            echo "Preview is live on: http://${previewRouteHost}"
                         }
                     }
                 }
