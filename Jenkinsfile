@@ -103,7 +103,7 @@ pipeline {
         stage('deploy') {
             steps {
                 githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
-                openshiftScale(depCfg: instanceName, replicaCount: "1")
+                openshiftScale(depCfg: instanceName, replicaCount: "1", verifyReplicaCount: "false")
                 openshiftDeploy(depCfg: instanceName)
                 script {
                     openshift.withCluster() {
