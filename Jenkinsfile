@@ -9,8 +9,8 @@ def deleteEverything(instanceName) {
 
 pipeline {
     options {
-        // set a timeout of 20 minutes for this pipeline
-        timeout(time: 20, unit: 'MINUTES')
+        // set a timeout of 30 minutes for this pipeline
+        timeout(time: 30, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
     agent {
