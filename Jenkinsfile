@@ -28,15 +28,15 @@ pipeline {
                     // Determine build target name, instance name, image stream name and tag
                     //
                     if (env.CHANGE_ID) {
-                        buildTarget = "pr${env.CHANGE_ID}"
+                        buildTarget = "pr-${env.CHANGE_ID}"
                         imageStreamName = "${appName}-pr"
                         imageStreamTag = env.CHANGE_ID
                     } else if (env.TAG_NAME) {
-                        buildTarget = "master"
-                        imageStreamName = "${appName}-master"
+                        buildTarget = "release"
+                        imageStreamName = "${appName}-release"
                         imageStreamTag = env.TAG_NAME
                     } else if (env.BRANCH_NAME) {
-                        buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
+                        buildTarget = "branch-${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
                         imageStreamName = "${appName}-${buildTarget}"
                         imageStreamTag = "build-${env.BUILD_ID}"
                     } else {
@@ -142,6 +142,18 @@ pipeline {
                     }
                 }
 
+                // Tag successfully built image as latest (except for PRs).
+                // This is mostly useful for myapp-release and myapp-branch-master image streams.
+                // For example your staging app can use myapp-branch-master:latest
+                if (env.CHANGE_ID == null) {
+                    openshiftTag(
+                      srcStream: imageStreamName,
+                      srcTag: imageStreamTag,
+                      destStream: imageStreamName,
+                      destTag: "latest"
+                    )
+                }
+
                 githubNotify status: "SUCCESS", context: "build", description: 'Successful build and tests'
             }
         }
@@ -185,25 +197,6 @@ pipeline {
                         }
                     }
                 }
-            }
-        }
-
-        // Now that the build (and tests) are successful,
-        // let's tag the resulting imagestream with "latest" (except for PRs and tags)
-        stage('tag latest') {
-            when {
-                allOf {
-                    expression { env.CHANGE_ID == null }
-                    expression { env.TAG_NAME == null }
-                }
-            }
-            steps {
-                openshiftTag(
-                  srcStream: imageStreamName,
-                  srcTag: imageStreamTag,
-                  destStream: imageStreamName,
-                  destTag: "latest"
-                )
             }
         }
     }
