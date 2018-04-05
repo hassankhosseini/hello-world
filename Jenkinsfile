@@ -31,7 +31,8 @@ pipeline {
                     if (env.CHANGE_ID) {
                         targetBranch = "pr${env.CHANGE_ID}"
                     } else {
-                        targetBranch = "${env.BRANCH_NAME}".replaceAll("/","-")
+                        //targetBranch = "${env.BRANCH_NAME}".replaceAll("(/|_|-)+","-")​
+                        targetBranch = "${env.BRANCH_NAME}".replaceAll("/","-")​
                     }
 
                     instanceName = "${appName}-${targetBranch}"
