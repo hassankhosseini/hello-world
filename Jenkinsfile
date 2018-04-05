@@ -186,6 +186,8 @@ pipeline {
         stage('teardown') {
             when {
                 allOf {
+                    // Git tags do not need a preview since they must've already had one on their branch
+                    expression { env.TAG_NAME == null }
                     expression { shouldTeardownPreview() }
                 }
             }
