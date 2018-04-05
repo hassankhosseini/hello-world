@@ -1,4 +1,4 @@
-appName = "hello-world"
+appName = "app"
 
 def deleteEverything(instanceName) {
     openshift.withCluster() {
@@ -128,30 +128,30 @@ pipeline {
 
                 echo ("Building based on refSpec = ${refSpec}")
 
-                openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true', waitTime: '30', waitUnit: 'min')
-
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
+                            openshiftBuild(bldCfg: instanceName, commitID: refSpec, showBuildLogs: 'true', waitTime: '30', waitUnit: 'min')
+
                             def builds = openshift.selector("bc", instanceName).related('builds')
 
                             builds.untilEach(1) {
                                 return (it.object().status.phase == "Complete")
                             }
+
+                            // Tag successfully built image as latest (except for PRs).
+                            // This is mostly useful for myapp-release and myapp-branch-master image streams.
+                            // For example your staging app can use myapp-branch-master:latest
+                            if (env.CHANGE_ID == null) {
+                                openshiftTag(
+                                  srcStream: imageStreamName,
+                                  srcTag: imageStreamTag,
+                                  destStream: imageStreamName,
+                                  destTag: "latest"
+                                )
+                            }
                         }
                     }
-                }
-
-                // Tag successfully built image as latest (except for PRs).
-                // This is mostly useful for myapp-release and myapp-branch-master image streams.
-                // For example your staging app can use myapp-branch-master:latest
-                if (env.CHANGE_ID == null) {
-                    openshiftTag(
-                      srcStream: imageStreamName,
-                      srcTag: imageStreamTag,
-                      destStream: imageStreamName,
-                      destTag: "latest"
-                    )
                 }
 
                 githubNotify status: "SUCCESS", context: "build", description: 'Successful build and tests'
