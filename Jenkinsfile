@@ -106,7 +106,7 @@ pipeline {
                             )
 
                             // Set a custom env variable on DeploymentConfig
-                            openshift.raw("env dc/${instanceName} DEPLOYMENT_ENV=${imageStreamName}-${imageStreamTag}")
+                            openshift.raw("env dc/${instanceName} DEPLOYMENT_ENV=${imageStreamName}:${imageStreamTag}")
                         }
                     }
                 }
