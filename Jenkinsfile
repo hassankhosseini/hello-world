@@ -31,7 +31,7 @@ pipeline {
                     if (env.CHANGE_ID) {
                         targetBranch = "pr${env.CHANGE_ID}"
                     } else {
-                        targetBranch = "${env.BRANCH_NAME}".replaceAll("(/|_|-)+","-")​
+                        targetBranch = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
                     }
 
                     instanceName = "${appName}-${targetBranch}"
@@ -202,8 +202,10 @@ pipeline {
     }
     post {
         always {
-            if (env.CHANGE_ID != null) {
-                deleteEverything(instanceName)
+            script {
+                if (env.CHANGE_ID != null) {
+                    deleteEverything(instanceName)
+                }
             }
         }
         failure {
