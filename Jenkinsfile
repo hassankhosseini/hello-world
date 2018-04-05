@@ -37,48 +37,43 @@ pipeline {
         stage('prepare') {
             steps {
                 script {
-                    //
-                    // Determine (escaped) branch name and instance name
-                    //
-                    if (env.CHANGE_ID) {
-                        buildTarget = "pr${env.CHANGE_ID}"
-                    } else if (env.TAG_NAME) {
-                        buildTarget = "v${env.TAG_NAME}".replace(".", "-")​
-                    } else if (env.BRANCH_NAME) {
-                        buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-|[.])+/,"-")​
-                    } else {
-                        error("No branch nor pull-request ID nor git tag was provided")
-                    }
-
-                    instanceName = "${appName}-${buildTarget}"
-
-                    //
-                    // Find git commit sha1 useful in various steps
-                    //
-                    gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
-                    gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
-
-                    echo ("gitCommit = ${gitCommit}")
-                    echo ("gitShortCommit = ${gitShortCommit}")
-
-                    //
-                    // Post pending commit statuses to GitHub
-                    //
-                    githubNotify status: "PENDING", context: "build", description: 'Starting pipeline'
-                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build'
-
-                    //
-                    // Prepare image streams in OpenShift
-                    //
-                    if (env.CHANGE_ID) {
-                      imageStreamName = "${appName}-pr"
-                      imageStreamTag = env.CHANGE_ID
-                    } else {
-                      imageStreamName = "${appName}-${buildTarget}"
-                      imageStreamTag = gitShortCommit
-                    }
                     openshift.withCluster() {
                         openshift.withProject() {
+
+                            //
+                            // Find git commit sha1 useful in various steps
+                            //
+                            gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
+                            gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
+                            echo ("gitCommit = ${gitCommit}")
+                            echo ("gitShortCommit = ${gitShortCommit}")
+
+                            //
+                            // Determine build target name, instance name, image stream name and tag
+                            //
+                            if (env.CHANGE_ID) {
+                                buildTarget = "pr${env.CHANGE_ID}"
+                                imageStreamName = "${appName}-pr"
+                                imageStreamTag = env.CHANGE_ID
+                            } else if (env.TAG_NAME) {
+                                buildTarget = "master"
+                                imageStreamName = "${appName}-master"
+                                imageStreamTag = env.TAG_NAME
+                            } else if (env.BRANCH_NAME) {
+                                buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-|[.])+/,"-")​
+                                imageStreamName = "${appName}-${buildTarget}"
+                                imageStreamTag = gitShortCommit
+                            } else {
+                                error("No branch nor pull-request ID nor git tag was provided")
+                            }
+                            instanceName = "${appName}-${buildTarget}"
+
+                            //
+                            // Post pending commit statuses to GitHub
+                            //
+                            githubNotify status: "PENDING", context: "build", description: 'Starting pipeline'
+                            githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build'
+
                             // Create imagestream if not exist yet
                             if (openshift.selector("imagestream", imageStreamName).count() == 0) {
                                 openshift.create([
@@ -89,7 +84,7 @@ pipeline {
                                 ])
                             }
 
-                            echo "Building, testing and deploying for ${instanceName} in project ${openshift.project()}"
+                            echo "Building, testing and deploying for ${imageStreamName}:${imageStreamTag} in project ${openshift.project()}"
                         }
                     }
                 }
@@ -117,7 +112,7 @@ pipeline {
                             )
 
                             // Set a custom env variable on DeploymentConfig
-                            openshift.raw("env dc/${instanceName} DEPLOYMENT_ENV=${instanceName}")
+                            openshift.raw("env dc/${instanceName} DEPLOYMENT_ENV=${imageStreamName}-${imageStreamTag}")
                         }
                     }
                 }
@@ -157,14 +152,8 @@ pipeline {
             }
         }
 
-        // Deploy a preview instance for this branch/PR (not for tags)
+        // Deploy a preview instance for this branch/PR/tag
         stage('deploy') {
-            when {
-                allOf {
-                    // Git tags do not need a preview since they must've already had one on their branch
-                    expression { env.TAG_NAME == null }
-                }
-            }
             steps {
                 githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
 
@@ -190,8 +179,6 @@ pipeline {
         stage('teardown') {
             when {
                 allOf {
-                    // Git tags do not need a preview since they must've already had one on their branch
-                    expression { env.TAG_NAME == null }
                     expression { shouldTeardownPreview() }
                 }
             }
@@ -204,23 +191,18 @@ pipeline {
         }
 
         // Now that the build (and tests) are successful,
-        // We will promote latest imagestream tag. (for git tags only, not branches nor PRs).
+        // let's tag the resulting imagestream with "latest" (except for PRs and tags)
         stage('tag') {
             when {
                 allOf {
-                    expression { env.TAG_NAME != null }
+                    expression { env.CHANGE_ID == null }
+                    expression { env.TAG_NAME == null }
                 }
             }
             steps {
                 openshiftTag(
                   srcStream: imageStreamName,
                   srcTag: imageStreamTag,
-                  destStream: imageStreamName,
-                  destTag: env.TAG_NAME
-                )
-                openshiftTag(
-                  srcStream: imageStreamName,
-                  srcTag: env.TAG_NAME,
                   destStream: imageStreamName,
                   destTag: "latest"
                 )
