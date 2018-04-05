@@ -42,8 +42,12 @@ pipeline {
                     //
                     if (env.CHANGE_ID) {
                         buildTarget = "pr${env.CHANGE_ID}"
+                    } else if (env.TAG_NAME) {
+                        buildTarget = "v${env.TAG_NAME}".replace(".", "-")​
+                    } else if (env.BRANCH_NAME) {
+                        buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-|[.])+/,"-")​
                     } else {
-                        buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
+                        error("No branch nor pull-request ID nor git tag was provided")
                     }
 
                     instanceName = "${appName}-${buildTarget}"
