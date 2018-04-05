@@ -1,5 +1,17 @@
 appName = "hello-world"
 
+// Function below controls which previews to keep online and not teardown after successful build.
+//
+// To only teardown PRs previews (and keep all branches previews) use following condition instead:
+// env.CHANGE_ID != null
+//
+// By default we'd always teardown previews except for "master" branch,
+// as we assume it is the staging environment.
+//
+def shouldTeardownPreview() {
+    return env.BRANCH_NAME != "master"
+}
+
 def deleteEverything(instanceName) {
     openshift.withCluster() {
         openshift.withProject() {
@@ -29,12 +41,12 @@ pipeline {
                     // Determine (escaped) branch name and instance name
                     //
                     if (env.CHANGE_ID) {
-                        targetBranch = "pr${env.CHANGE_ID}"
+                        buildTarget = "pr${env.CHANGE_ID}"
                     } else {
-                        targetBranch = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
+                        buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
                     }
 
-                    instanceName = "${appName}-${targetBranch}"
+                    instanceName = "${appName}-${buildTarget}"
 
                     //
                     // Find git commit sha1 useful in various steps
@@ -58,7 +70,7 @@ pipeline {
                       imageStreamName = "${appName}-pr"
                       imageStreamTag = env.CHANGE_ID
                     } else {
-                      imageStreamName = "${appName}-${targetBranch}"
+                      imageStreamName = "${appName}-${buildTarget}"
                       imageStreamTag = gitShortCommit
                     }
                     openshift.withCluster() {
@@ -141,9 +153,14 @@ pipeline {
             }
         }
 
-        // Deploy a preview instance for this branch
-        // pipeline will be paused until a dev "Proceed"s with teardown stage.
+        // Deploy a preview instance for this branch/PR (not for tags)
         stage('deploy') {
+            when {
+                allOf {
+                    // Git tags do not need a preview since they must've already had one on their branch
+                    expression { env.TAG_NAME == null }
+                }
+            }
             steps {
                 githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
 
@@ -165,35 +182,39 @@ pipeline {
                 githubNotify status: "SUCCESS", context: "preview", description: "Preview is online on http://${previewRouteHost}", targetUrl: "http://${previewRouteHost}"
             }
         }
+
         stage('teardown') {
             when {
                 allOf {
-                    // Do not tear down "master" and "staging" branches
-                    expression { env.BRANCH_NAME != "master" }
-                    expression { env.BRANCH_NAME != "staging" }
+                    expression { shouldTeardownPreview() }
                 }
             }
             steps {
                 script {
                     echo "Preview is available on: http://${previewRouteHost}"
                     input message: "Finished viewing changes? (Click 'Proceed' to teardown preview instance)"
-                    deleteEverything(instanceName)
                 }
             }
         }
 
-        // Now that the build (and tests) and deployments are successful,
-        // We will promote latest tag (for branches).
+        // Now that the build (and tests) are successful,
+        // We will promote latest imagestream tag. (for git tags only, not branches nor PRs).
         stage('tag') {
             when {
                 allOf {
-                    expression { env.CHANGE_ID == null }
+                    expression { env.TAG_NAME != null }
                 }
             }
             steps {
                 openshiftTag(
                   srcStream: imageStreamName,
                   srcTag: imageStreamTag,
+                  destStream: imageStreamName,
+                  destTag: env.TAG_NAME
+                )
+                openshiftTag(
+                  srcStream: imageStreamName,
+                  srcTag: env.TAG_NAME,
                   destStream: imageStreamName,
                   destTag: "latest"
                 )
@@ -203,7 +224,7 @@ pipeline {
     post {
         always {
             script {
-                if (env.CHANGE_ID != null) {
+                if (shouldTeardownPreview()) {
                     deleteEverything(instanceName)
                 }
             }
