@@ -28,7 +28,7 @@ pipeline {
                     // Determine build target name, instance name, image stream name and tag
                     //
                     if (env.CHANGE_ID) {
-                        buildTarget = "pr${env.CHANGE_ID}"
+                        buildTarget = "pr-${env.CHANGE_ID}"
                         imageStreamName = "${appName}-pr"
                         imageStreamTag = env.CHANGE_ID
                     } else if (env.TAG_NAME) {
@@ -36,7 +36,7 @@ pipeline {
                         imageStreamName = "${appName}-release"
                         imageStreamTag = env.TAG_NAME
                     } else if (env.BRANCH_NAME) {
-                        buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
+                        buildTarget = "branch-${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
                         imageStreamName = "${appName}-${buildTarget}"
                         imageStreamTag = "build-${env.BUILD_ID}"
                     } else {
