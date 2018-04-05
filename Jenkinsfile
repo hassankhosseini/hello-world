@@ -32,8 +32,8 @@ pipeline {
                         imageStreamName = "${appName}-pr"
                         imageStreamTag = env.CHANGE_ID
                     } else if (env.TAG_NAME) {
-                        buildTarget = "master"
-                        imageStreamName = "${appName}-master"
+                        buildTarget = "release"
+                        imageStreamName = "${appName}-release"
                         imageStreamTag = env.TAG_NAME
                     } else if (env.BRANCH_NAME) {
                         buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
