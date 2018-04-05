@@ -11,8 +11,7 @@ def deleteEverything(instanceName) {
 
 pipeline {
     options {
-        // set a timeout of 30 minutes for this pipeline
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 60, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
     agent {
@@ -25,43 +24,50 @@ pipeline {
         stage('prepare') {
             steps {
                 script {
+                    //
+                    // Determine build target name, instance name, image stream name and tag
+                    //
+                    if (env.CHANGE_ID) {
+                        buildTarget = "pr${env.CHANGE_ID}"
+                        imageStreamName = "${appName}-pr"
+                        imageStreamTag = env.CHANGE_ID
+                    } else if (env.TAG_NAME) {
+                        buildTarget = "master"
+                        imageStreamName = "${appName}-master"
+                        imageStreamTag = env.TAG_NAME
+                    } else if (env.BRANCH_NAME) {
+                        buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-)+/,"-")
+                        imageStreamName = "${appName}-${buildTarget}"
+                        imageStreamTag = "build-${env.BUILD_ID}"
+                    } else {
+                        error("No branch nor pull-request ID nor git tag was provided")
+                    }
+
+                    instanceName = "${appName}-${buildTarget}"
+
+                    //
+                    // Post pending commit statuses to GitHub
+                    //
+                    githubNotify status: "PENDING", context: "build", description: 'Starting pipeline'
+                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build'
+
+                    //
+                    // Find git commit sha1 useful in various steps
+                    //
+                    gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
+                    gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
+
+                    // Print variables
+                    echo ("buildTarget = ${buildTarget}")
+                    echo ("instanceName = ${instanceName}")
+                    echo ("imageStreamName = ${imageStreamName}")
+                    echo ("imageStreamTag = ${imageStreamTag}")
+                    echo ("gitCommit = ${gitCommit}")
+                    echo ("gitShortCommit = ${gitShortCommit}")
+                    sh("printenv")
+
                     openshift.withCluster() {
                         openshift.withProject() {
-
-                            //
-                            // Find git commit sha1 useful in various steps
-                            //
-                            gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
-                            gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
-                            echo ("gitCommit = ${gitCommit}")
-                            echo ("gitShortCommit = ${gitShortCommit}")
-
-                            //
-                            // Determine build target name, instance name, image stream name and tag
-                            //
-                            if (env.CHANGE_ID) {
-                                buildTarget = "pr${env.CHANGE_ID}"
-                                imageStreamName = "${appName}-pr"
-                                imageStreamTag = env.CHANGE_ID
-                            } else if (env.TAG_NAME) {
-                                buildTarget = "master"
-                                imageStreamName = "${appName}-master"
-                                imageStreamTag = env.TAG_NAME
-                            } else if (env.BRANCH_NAME) {
-                                buildTarget = "${env.BRANCH_NAME}".replaceAll(/(\\/|_|-|[.])+/,"-")​
-                                imageStreamName = "${appName}-${buildTarget}"
-                                imageStreamTag = gitShortCommit
-                            } else {
-                                error("No branch nor pull-request ID nor git tag was provided")
-                            }
-                            instanceName = "${appName}-${buildTarget}"
-
-                            //
-                            // Post pending commit statuses to GitHub
-                            //
-                            githubNotify status: "PENDING", context: "build", description: 'Starting pipeline'
-                            githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build'
-
                             // Create imagestream if not exist yet
                             if (openshift.selector("imagestream", imageStreamName).count() == 0) {
                                 openshift.create([
@@ -168,14 +174,23 @@ pipeline {
             steps {
                 script {
                     echo "Preview is available on: http://${previewRouteHost}"
-                    input message: "Finished viewing changes? (Click 'Proceed' to teardown preview instance)"
+                    try {
+                        timeout(time: 20, unit: 'MINUTES') {
+                            input message: "Finished viewing changes? (Click 'Proceed' to teardown preview instance)"
+                        }
+                    } catch(err) { // timeout reached or input false
+                        def user = err.getCauses()[0].getUser()
+                        if('SYSTEM' != user.toString()) { // SYSTEM means timeout.
+                            error("Preview was aborted by: [${user}]")
+                        }
+                    }
                 }
             }
         }
 
         // Now that the build (and tests) are successful,
         // let's tag the resulting imagestream with "latest" (except for PRs and tags)
-        stage('tag') {
+        stage('tag latest') {
             when {
                 allOf {
                     expression { env.CHANGE_ID == null }
