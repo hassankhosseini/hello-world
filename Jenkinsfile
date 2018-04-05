@@ -1,17 +1,5 @@
 appName = "hello-world"
 
-// Function below controls which previews to keep online and not teardown after successful build.
-//
-// To only teardown PRs previews (and keep all branches previews) use following condition instead:
-// env.CHANGE_ID != null
-//
-// By default we'd always teardown previews except for "master" branch,
-// as we assume it is the staging environment.
-//
-def shouldTeardownPreview() {
-    return env.BRANCH_NAME != "master"
-}
-
 def deleteEverything(instanceName) {
     openshift.withCluster() {
         openshift.withProject() {
@@ -177,11 +165,6 @@ pipeline {
         }
 
         stage('teardown') {
-            when {
-                allOf {
-                    expression { shouldTeardownPreview() }
-                }
-            }
             steps {
                 script {
                     echo "Preview is available on: http://${previewRouteHost}"
@@ -212,9 +195,7 @@ pipeline {
     post {
         always {
             script {
-                if (shouldTeardownPreview()) {
-                    deleteEverything(instanceName)
-                }
+                deleteEverything(instanceName)
             }
         }
         failure {
