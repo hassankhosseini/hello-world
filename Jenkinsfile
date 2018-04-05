@@ -174,9 +174,11 @@ pipeline {
                 }
             }
             steps {
-                echo "Preview is available on: http://${previewRouteHost}"
-                input message: "Finished viewing changes? (Click "Proceed" to teardown preview instance)'
-                deleteEverything(instanceName)
+                script {
+                    echo "Preview is available on: http://${previewRouteHost}"
+                    input message: "Finished viewing changes? (Click 'Proceed' to teardown preview instance)"
+                    deleteEverything(instanceName)
+                }
             }
         }
 
