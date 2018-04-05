@@ -14,6 +14,6 @@ describe "#hello" do
   end
 
   it "is always ok" do
-    expect(2).to eq(2)
+    expect(3).to eq(3)
   end
 end
