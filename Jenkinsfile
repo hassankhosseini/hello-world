@@ -212,6 +212,12 @@ pipeline {
                   destStream: imageStreamName,
                   destTag: env.TAG_NAME
                 )
+                openshiftTag(
+                  srcStream: imageStreamName,
+                  srcTag: env.TAG_NAME,
+                  destStream: imageStreamName,
+                  destTag: "latest"
+                )
             }
         }
     }
