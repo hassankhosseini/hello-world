@@ -1,4 +1,4 @@
-appName = "app"
+appName = "hello"
 
 def deleteEverything(instanceName) {
     openshift.withCluster() {
@@ -56,6 +56,7 @@ pipeline {
                     //
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
+                    gitMessage = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%B'")
 
                     // Print variables
                     echo ("buildTarget = ${buildTarget}")
@@ -85,6 +86,9 @@ pipeline {
             }
         }
         stage('cleanup') {
+            when {
+                expression { !gitMessage.contains("[skip]") }
+            }
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Cleaning up old resources'
                 deleteEverything(instanceName)
@@ -93,6 +97,9 @@ pipeline {
 
         // Create a new app stack to fully build, deploy and serve this branch
         stage('create') {
+            when {
+                expression { !gitMessage.contains("[skip]") }
+            }
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Creating new resources'
                 script {
@@ -102,7 +109,8 @@ pipeline {
                               "${pwd()}/abar.yml",
                               "-p", "NAME=${instanceName}",
                               "-p", "IMAGESTREAM_NAME=${imageStreamName}",
-                              "-p", "IMAGESTREAM_TAG=${imageStreamTag}"
+                              "-p", "IMAGESTREAM_TAG=${imageStreamTag}",
+                              "-p", "IMAGESTREAM_NAMESPACE=${openshift.project()}"
                             )
 
                             // Set a custom env variable on DeploymentConfig
@@ -115,6 +123,9 @@ pipeline {
 
         // Build on a new BuildConfig which also runs tests via spec.postCommit.script
         stage('build') {
+            when {
+                expression { !gitMessage.contains("[skip]") }
+            }
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Running build and tests'
 
@@ -138,18 +149,6 @@ pipeline {
                             builds.untilEach(1) {
                                 return (it.object().status.phase == "Complete")
                             }
-
-                            // Tag successfully built image as latest (except for PRs).
-                            // This is mostly useful for myapp-release and myapp-branch-master image streams.
-                            // For example your staging app can use myapp-branch-master:latest
-                            if (env.CHANGE_ID == null) {
-                                openshiftTag(
-                                  srcStream: imageStreamName,
-                                  srcTag: imageStreamTag,
-                                  destStream: imageStreamName,
-                                  destTag: "latest"
-                                )
-                            }
                         }
                     }
                 }
@@ -159,7 +158,11 @@ pipeline {
         }
 
         // Deploy a preview instance for this branch/PR/tag
+        // Only if "[preview]" is present in commit message
         stage('deploy') {
+            when {
+                expression { gitMessage.contains("[preview]") }
+            }
             steps {
                 githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
 
@@ -181,21 +184,15 @@ pipeline {
                 githubNotify status: "SUCCESS", context: "preview", description: "Preview is online on http://${previewRouteHost}", targetUrl: "http://${previewRouteHost}"
             }
         }
-
         stage('teardown') {
+            when {
+                expression { gitMessage.contains("[preview]") }
+            }
             steps {
                 script {
                     echo "Preview is available on: http://${previewRouteHost}"
-                    try {
-                        timeout(time: 20, unit: 'MINUTES') {
-                            input message: "Finished viewing changes? (Click 'Proceed' to teardown preview instance)"
-                        }
-                    } catch(err) { // timeout reached or input false
-                        def user = err.getCauses()[0].getUser()
-                        if('SYSTEM' != user.toString()) { // SYSTEM means timeout.
-                            error("Preview was aborted by: [${user}]")
-                        }
-                    }
+                    previewResolution = input message: "Finished viewing changes?",
+                            parameters: [choice(name: 'previewResolution', choices: 'Teardown preview instance\nKeep preview online', description: 'Should I destroy the preview instance when this build is finished?')]
                 }
             }
         }
@@ -203,7 +200,24 @@ pipeline {
     post {
         always {
             script {
-                deleteEverything(instanceName)
+                if (!previewResolution || previewResolution.contains("Teardown")) {
+                    deleteEverything(instanceName)
+                }
+            }
+        }
+        success {
+            script {
+                // Tag successfully built image as latest (except for PRs).
+                // This is most useful for myapp-release and myapp-branch-master image streams.
+                // For example your staging app can use myapp-branch-master:latest
+                if (env.CHANGE_ID == null) {
+                    openshiftTag(
+                      srcStream: imageStreamName,
+                      srcTag: imageStreamTag,
+                      destStream: imageStreamName,
+                      destTag: "latest"
+                    )
+                }
             }
         }
         failure {
