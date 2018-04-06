@@ -55,9 +55,9 @@ objects:
           deploymentconfig: ${NAME}
       spec:
         containers:
-          - image: ${NAME}:latest
+          - name: app
+            image: ${NAME}:latest
             imagePullPolicy: Always
-            name: ${NAME}
             ports:
             - containerPort: ${PORT}
             terminationMessagePath: /dev/termination-log
@@ -67,7 +67,7 @@ objects:
     - imageChangeParams:
         automatic: false
         containerNames:
-        - ${NAME}
+        - app
         from:
           kind: ImageStreamTag
           name: ${IMAGESTREAM_NAME}:${IMAGESTREAM_TAG}
