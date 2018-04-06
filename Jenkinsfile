@@ -186,7 +186,8 @@ pipeline {
             steps {
                 script {
                     echo "Preview is available on: http://${previewRouteHost}"
-                    input message: "Finished viewing changes? (Click 'Proceed' to teardown preview instance)"
+                    previewResolution = input message: "Finished viewing changes?",
+                            parameters: [choice(name: 'previewResolution', choices: 'Teardown preview instance\nKeep preview online', description: 'Should I destroy the preview instance when this build is finished?')]
                 }
             }
         }
@@ -194,7 +195,9 @@ pipeline {
     post {
         always {
             script {
-                deleteEverything(instanceName)
+                if (!previewResolution || previewResolution.contains("Teardown")) {
+                    deleteEverything(instanceName)
+                }
             }
         }
         failure {
