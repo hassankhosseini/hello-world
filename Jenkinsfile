@@ -67,6 +67,9 @@ pipeline {
                     echo ("gitShortCommit = ${gitShortCommit}")
                     sh("printenv")
 
+                    // Initialize some variables
+                    previewResolution = ""
+
                     openshift.withCluster() {
                         openshift.withProject() {
                             // Create imagestream if not exist yet
@@ -200,7 +203,7 @@ pipeline {
     post {
         always {
             script {
-                if (!previewResolution || previewResolution.contains("Teardown")) {
+                if (previewResolution == "" || previewResolution.contains("Teardown")) {
                     deleteEverything(instanceName)
                 }
             }
