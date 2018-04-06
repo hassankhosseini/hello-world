@@ -110,6 +110,7 @@ pipeline {
                               "-p", "NAME=${instanceName}",
                               "-p", "IMAGESTREAM_NAME=${imageStreamName}",
                               "-p", "IMAGESTREAM_TAG=${imageStreamTag}"
+                              "-p", "IMAGESTREAM_NAMESPACE=${openshift.project()}"
                             )
 
                             // Set a custom env variable on DeploymentConfig

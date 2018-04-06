@@ -1,19 +1,24 @@
 apiVersion: v1
 kind: Template
 metadata:
-  name: hello-world-app
+  name: hello
 labels:
-  template: "hello-world-app"
+  template: "hello"
 
 parameters:
 - displayName: Name
   name: NAME
   required: true
-  value: hello-world
+  value: hello
+- displayName: Imagestream Namespace
+  description:
+  name: IMAGESTREAM_NAMESPACE
+  required: true
+  value: myorg-build
 - displayName: Imagestream Name
   name: IMAGESTREAM_NAME
   required: true
-  value: hello-world
+  value: hello
 - displayName: Imagestream Tag
   name: IMAGESTREAM_TAG
   required: true
@@ -66,6 +71,7 @@ objects:
         from:
           kind: ImageStreamTag
           name: ${IMAGESTREAM_NAME}:${IMAGESTREAM_TAG}
+          namespace: ${IMAGESTREAM_NAMESPACE}
       type: ImageChange
 
 - apiVersion: v1
