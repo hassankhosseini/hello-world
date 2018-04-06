@@ -89,9 +89,6 @@ pipeline {
             }
         }
         stage('cleanup') {
-            when {
-                expression { !gitMessage.contains("[skip]") }
-            }
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Cleaning up old resources'
                 deleteEverything(instanceName)
@@ -100,9 +97,6 @@ pipeline {
 
         // Create a new app stack to fully build, deploy and serve this branch
         stage('create') {
-            when {
-                expression { !gitMessage.contains("[skip]") }
-            }
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Creating new resources'
                 script {
@@ -126,9 +120,6 @@ pipeline {
 
         // Build on a new BuildConfig which also runs tests via spec.postCommit.script
         stage('build') {
-            when {
-                expression { !gitMessage.contains("[skip]") }
-            }
             steps {
                 githubNotify status: "PENDING", context: "build", description: 'Running build and tests'
 
