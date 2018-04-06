@@ -49,7 +49,7 @@ pipeline {
                     // Post pending commit statuses to GitHub
                     //
                     githubNotify status: "PENDING", context: "build", description: 'Starting pipeline'
-                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build'
+                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build', targetUrl: false
 
                     //
                     // Find git commit sha1 useful in various steps
@@ -158,7 +158,7 @@ pipeline {
                 expression { needsPreview }
             }
             steps {
-                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
+                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview', targetUrl: false
 
                 script {
                     openshift.withCluster() {
@@ -219,7 +219,7 @@ pipeline {
         }
         failure {
             githubNotify status: "FAILURE", context: "build", description: "Pipeline failed!"
-            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!"
+            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!", targetUrl: false
         }
     }
 } // pipeline
