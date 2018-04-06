@@ -186,16 +186,7 @@ pipeline {
             steps {
                 script {
                     echo "Preview is available on: http://${previewRouteHost}"
-                    try {
-                        timeout(time: 2, unit: 'MINUTES') {
-                            input message: "Finished viewing changes? (Click 'Proceed' to teardown preview instance)"
-                        }
-                    } catch(err) { // timeout reached or input false
-                        def user = err.getCauses()[0].getUser()
-                        if('SYSTEM' != user.toString()) { // SYSTEM means timeout.
-                            error("Preview was aborted by: [${user}]")
-                        }
-                    }
+                    input message: "Finished viewing changes? (Click 'Proceed' to teardown preview instance)"
                 }
             }
         }
