@@ -1,4 +1,4 @@
-appName = "app"
+appName = "hello"
 
 def deleteEverything(instanceName) {
     openshift.withCluster() {
@@ -187,7 +187,7 @@ pipeline {
                 script {
                     echo "Preview is available on: http://${previewRouteHost}"
                     try {
-                        timeout(time: 20, unit: 'MINUTES') {
+                        timeout(time: 2, unit: 'MINUTES') {
                             input message: "Finished viewing changes? (Click 'Proceed' to teardown preview instance)"
                         }
                     } catch(err) { // timeout reached or input false
