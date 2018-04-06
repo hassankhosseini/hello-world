@@ -109,7 +109,7 @@ pipeline {
                               "${pwd()}/abar.yml",
                               "-p", "NAME=${instanceName}",
                               "-p", "IMAGESTREAM_NAME=${imageStreamName}",
-                              "-p", "IMAGESTREAM_TAG=${imageStreamTag}"
+                              "-p", "IMAGESTREAM_TAG=${imageStreamTag}",
                               "-p", "IMAGESTREAM_NAMESPACE=${openshift.project()}"
                             )
 
@@ -148,18 +148,6 @@ pipeline {
 
                             builds.untilEach(1) {
                                 return (it.object().status.phase == "Complete")
-                            }
-
-                            // Tag successfully built image as latest (except for PRs).
-                            // This is mostly useful for myapp-release and myapp-branch-master image streams.
-                            // For example your staging app can use myapp-branch-master:latest
-                            if (env.CHANGE_ID == null) {
-                                openshiftTag(
-                                  srcStream: imageStreamName,
-                                  srcTag: imageStreamTag,
-                                  destStream: imageStreamName,
-                                  destTag: "latest"
-                                )
                             }
                         }
                     }
@@ -214,6 +202,21 @@ pipeline {
             script {
                 if (!previewResolution || previewResolution.contains("Teardown")) {
                     deleteEverything(instanceName)
+                }
+            }
+        }
+        success {
+            script {
+                // Tag successfully built image as latest (except for PRs).
+                // This is most useful for myapp-release and myapp-branch-master image streams.
+                // For example your staging app can use myapp-branch-master:latest
+                if (env.CHANGE_ID == null) {
+                    openshiftTag(
+                      srcStream: imageStreamName,
+                      srcTag: imageStreamTag,
+                      destStream: imageStreamName,
+                      destTag: "latest"
+                    )
                 }
             }
         }
