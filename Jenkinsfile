@@ -56,6 +56,7 @@ pipeline {
                     //
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
+                    gitMessage = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%B'")
 
                     // Print variables
                     echo ("buildTarget = ${buildTarget}")
@@ -159,7 +160,11 @@ pipeline {
         }
 
         // Deploy a preview instance for this branch/PR/tag
+        // Only if "[preview]" is present in commit message
         stage('deploy') {
+            when {
+                expression { gitMessage.contains("[preview]") }
+            }
             steps {
                 githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
 
@@ -181,8 +186,10 @@ pipeline {
                 githubNotify status: "SUCCESS", context: "preview", description: "Preview is online on http://${previewRouteHost}", targetUrl: "http://${previewRouteHost}"
             }
         }
-
         stage('teardown') {
+            when {
+                expression { gitMessage.contains("[preview]") }
+            }
             steps {
                 script {
                     echo "Preview is available on: http://${previewRouteHost}"
