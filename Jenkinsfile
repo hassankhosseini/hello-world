@@ -69,6 +69,7 @@ pipeline {
 
                     // Initialize some variables
                     previewResolution = ""
+                    needsPreview = gitMessage.contains("[preview]")
 
                     openshift.withCluster() {
                         openshift.withProject() {
@@ -152,10 +153,9 @@ pipeline {
         }
 
         // Deploy a preview instance for this branch/PR/tag
-        // Only if "[preview]" is present in commit message
         stage('deploy') {
             when {
-                expression { gitMessage.contains("[preview]") }
+                expression { needsPreview }
             }
             steps {
                 githubNotify status: "PENDING", context: "preview", description: 'Deploying preview'
@@ -180,7 +180,7 @@ pipeline {
         }
         stage('teardown') {
             when {
-                expression { gitMessage.contains("[preview]") }
+                expression { needsPreview }
             }
             steps {
                 script {
@@ -196,6 +196,9 @@ pipeline {
             script {
                 if (previewResolution == "" || previewResolution.contains("Teardown")) {
                     deleteEverything(instanceName)
+                }
+                if (!needsPreview) {
+                    githubNotify status: "SUCCESS", context: "preview", description: "Skipped preview since it was not requested"
                 }
             }
         }
