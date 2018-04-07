@@ -49,7 +49,7 @@ pipeline {
                     // Post pending commit statuses to GitHub
                     //
                     githubNotify status: "PENDING", context: "build", description: 'Starting pipeline'
-                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build', targetUrl: false
+                    githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build', targetUrl: " "
 
                     //
                     // Find git commit sha1 useful in various steps
@@ -158,7 +158,7 @@ pipeline {
                 expression { needsPreview }
             }
             steps {
-                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview', targetUrl: false
+                githubNotify status: "PENDING", context: "preview", description: 'Deploying preview', targetUrl: " "
 
                 script {
                     openshift.withCluster() {
@@ -198,7 +198,7 @@ pipeline {
                     deleteEverything(instanceName)
                 }
                 if (!needsPreview) {
-                    githubNotify status: "SUCCESS", context: "preview", description: "Skipped preview since it was not requested"
+                    githubNotify status: "SUCCESS", context: "preview", description: "Skipped preview since it was not requested", targetUrl: " "
                 }
             }
         }
@@ -218,8 +218,15 @@ pipeline {
             }
         }
         failure {
-            githubNotify status: "FAILURE", context: "build", description: "Pipeline failed!"
-            githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!", targetUrl: false
+            script {
+                githubNotify status: "FAILURE", context: "build", description: "Pipeline failed!"
+
+                if (!needsPreview) {
+                    githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!", targetUrl: " "
+                } else {
+                    githubNotify status: "SUCCESS", context: "preview", description: "Skipped preview since it was not requested", targetUrl: " "
+                }
+            }
         }
     }
 } // pipeline
