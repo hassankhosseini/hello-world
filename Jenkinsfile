@@ -24,8 +24,8 @@ pipeline {
                     //
                     if (env.CHANGE_ID) {
                         buildTarget = "pr-${env.CHANGE_ID}"
-                        imageStreamName = "${appName}-pr"
-                        imageStreamTag = env.CHANGE_ID
+                        imageStreamName = "${appName}-contrib"
+                        imageStreamTag = "pr-${env.CHANGE_ID}"
                     } else if (env.TAG_NAME) {
                         buildTarget = "release"
                         imageStreamName = "${appName}-release"
