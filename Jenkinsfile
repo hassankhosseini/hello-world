@@ -19,6 +19,8 @@ pipeline {
         stage('prepare') {
             steps {
                 script {
+                    comment = pullRequest.comment('This PR is highly illogical..')
+
                     //
                     // Determine build target name, instance name, image stream name and tag
                     //
