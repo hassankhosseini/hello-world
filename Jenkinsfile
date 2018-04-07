@@ -14,13 +14,14 @@ pipeline {
         timeout(time: 60, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
+    triggers {
+        issueCommentTrigger('.*test this please.*')
+    }
     agent any
     stages {
         stage('prepare') {
             steps {
                 script {
-                    comment = pullRequest.comment('This PR is highly illogical..')
-
                     //
                     // Determine build target name, instance name, image stream name and tag
                     //
@@ -168,6 +169,21 @@ pipeline {
 
                             previewRouteHost = openshift.selector("route", instanceName).object().spec.host
                             echo "Preview is live on: http://${previewRouteHost}"
+
+                            if (env.CHANGE_ID) {
+                                def found = false
+                                def commentBody = "Live preview of build *[${imageStreamName}:${imageStreamTag}](${env.RUN_DISPLAY_URL}) @ ${gitShortCommit}* is available on: http://${previewRouteHost}"
+                                for (comment in pullRequest['comments']) {
+                                    if (comment['body'].startsWith('Live preview of build')) {
+                                        pullRequest.editComment(comment['id'], comment['body'])
+                                        found = true
+                                        break
+                                    }
+                                }
+                                if (!found) {
+                                    pullRequest.comment(commentBody)
+                                }
+                            }
                         }
                     }
                 }
