@@ -18,4 +18,7 @@ docker run -p 8080:8080 MY_IMAGE_ID_FROM_ABOVE
 
 ## To deploy on AbarCloud:
 
-Follow the instructions [here](https://docs.abarcloud.com).
+```
+oc new-app https://github.com/abarcloud/hello-world
+```
+Follow the instructions [here](https://docs.abarcloud.com) for more info.
