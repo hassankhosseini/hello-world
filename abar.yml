@@ -30,7 +30,7 @@ parameters:
 - displayName: Git Address
   name: APP_GIT_ADDRESS
   required: true
-  value: http://github.com/aramalipoor/hello-world.git
+  value: http://github.com/abarcloud/hello-world.git
 
 objects:
 
