@@ -9,12 +9,6 @@ def deleteEverything(instanceName) {
     }
 }
 
-def generateString = { String alphabet, int n ->
-  new Random().with {
-    (1..n).collect { alphabet[ nextInt( alphabet.length() ) ] }.join()
-  }
-}
-
 pipeline {
     options {
         timeout(time: 60, unit: 'MINUTES')
@@ -107,12 +101,10 @@ pipeline {
                 script {
                     openshift.withCluster() {
                         openshift.withProject() {
-                            randomSuffix = generateString( (('a'..'z')+('0'..'9')).join(), 10 )
-
                             openshift.newApp(
                               "${pwd()}/abar.yml",
                               "-p", "NAME=${instanceName}",
-                              "-p", "ROUTE_PREFIX=${instanceName}-${randomSuffix}",
+                              "-p", "ROUTE_PREFIX=temp-${instanceName}-${gitShortCommit}",
                               "-p", "IMAGESTREAM_NAME=${imageStreamName}",
                               "-p", "IMAGESTREAM_TAG=${imageStreamTag}",
                               "-p", "IMAGESTREAM_NAMESPACE=${openshift.project()}"
