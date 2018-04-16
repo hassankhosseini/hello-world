@@ -27,6 +27,10 @@ parameters:
   name: PORT
   required: true
   value: "8080"
+- name: ROUTE_PREFIX
+  displayName: Route prefix for .abar.cloud
+  description: Must be unique across all projects, and contain only lower-case letters, numbers and dashes.
+  required: true
 - displayName: Git Address
   name: APP_GIT_ADDRESS
   required: true
@@ -98,7 +102,7 @@ objects:
     labels:
       app: ${NAME}
   spec:
-    host: ${NAME}.abar.cloud
+    host: ${ROUTE_PREFIX}.abar.cloud
     port:
       targetPort: "${PORT}-tcp"
     tls:
