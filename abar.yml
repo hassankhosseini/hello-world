@@ -30,6 +30,7 @@ parameters:
 - displayName: Git Address
   name: APP_GIT_ADDRESS
   required: true
+  # Change this to the URL of your fork if you're trying this example  
   value: http://github.com/abarcloud/hello-world.git
 
 objects:
