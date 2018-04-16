@@ -1,4 +1,4 @@
-appName = "hello"
+appName = "hello-world"
 
 def deleteEverything(instanceName) {
     openshift.withCluster() {
