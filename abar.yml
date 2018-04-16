@@ -27,8 +27,9 @@ parameters:
   name: PORT
   required: true
   value: "8080"
+  # You shouldn't need to change the ROUTE_PREFIX  
 - name: ROUTE_PREFIX
-  displayName: Route prefix for .abar.cloud
+  displayName: Auto-generated route prefix for .abar.cloud
   description: Must be unique across all projects, and contain only lower-case letters, numbers and dashes.
   required: true
 - displayName: Git Address
