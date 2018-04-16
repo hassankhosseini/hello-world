@@ -63,7 +63,6 @@ pipeline {
                     echo ("imageStreamTag = ${imageStreamTag}")
                     echo ("gitCommit = ${gitCommit}")
                     echo ("gitShortCommit = ${gitShortCommit}")
-                    sh("printenv")
 
                     // Initialize some variables
                     previewResolution = ""
