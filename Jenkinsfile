@@ -1,5 +1,9 @@
 appName = "hello-world"
 
+// When using SSH repo URLs (e.g. for private repos), you need to uncomment and set the following variable.
+// You also need to set the SSH URL and the sourceSecret in "BuildConfig > spec > source" definition in abar.yml.
+//gitRemoteUrl = "git@github.com:abarcloud/hello-world.git"
+
 def deleteEverything(instanceName) {
     openshift.withCluster() {
         openshift.withProject() {
@@ -15,7 +19,7 @@ pipeline {
         disableConcurrentBuilds()
     }
     triggers {
-        issueCommentTrigger('.*test this please.*')
+        issueCommentTrigger('.*/test.*')
     }
     agent any
     stages {
@@ -50,11 +54,14 @@ pipeline {
                     githubNotify status: "PENDING", context: "preview", description: 'Waiting for successful build', targetUrl: " "
 
                     //
-                    // Find git commit sha1 useful in various steps
+                    // Find useful git info in various steps
                     //
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
-                    gitMessage = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%B'")
+                    gitMessage = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%B'").trim()
+                    if (!getBinding().hasVariable("gitRemoteUrl")) {
+                        gitRemoteUrl = sh(returnStdout: true, script: "git config --get remote.origin.url").trim()
+                    }
 
                     // Print variables
                     echo ("buildTarget = ${buildTarget}")
@@ -63,6 +70,7 @@ pipeline {
                     echo ("imageStreamTag = ${imageStreamTag}")
                     echo ("gitCommit = ${gitCommit}")
                     echo ("gitShortCommit = ${gitShortCommit}")
+                    echo ("gitRemoteUrl = ${gitRemoteUrl}")
 
                     // Initialize some variables
                     previewResolution = ""
@@ -101,15 +109,16 @@ pipeline {
                     openshift.withCluster() {
                         openshift.withProject() {
                             openshift.newApp(
-                              "${pwd()}/abar.yml",
+                              "-f", "${pwd()}/abar.yml",
                               "-p", "NAME=${instanceName}",
-                              "-p", "ROUTE_PREFIX=temp-${instanceName}-${gitShortCommit}",
+                              "-p", "ROUTE_PREFIX=temp-${gitShortCommit}-${instanceName}",
+                              "-p", "APP_GIT_ADDRESS=${gitRemoteUrl}",
                               "-p", "IMAGESTREAM_NAME=${imageStreamName}",
                               "-p", "IMAGESTREAM_TAG=${imageStreamTag}",
                               "-p", "IMAGESTREAM_NAMESPACE=${openshift.project()}"
                             )
 
-                            // Set a custom env variable on DeploymentConfig
+                            // Set a custom env variable on DeploymentConfig for preview instances
                             openshift.raw("env dc/${instanceName} DEPLOYMENT_ENV=${imageStreamName}:${imageStreamTag}")
                         }
                     }
@@ -173,15 +182,16 @@ pipeline {
                             if (env.CHANGE_ID) {
                                 def found = false
                                 def commentBody = "Live preview of build *[${imageStreamName}:${imageStreamTag}](${env.RUN_DISPLAY_URL}) @ ${gitShortCommit}* is available on: http://${previewRouteHost}"
-                                for (comment in pullRequest['comments']) {
-                                    if (comment['body'].startsWith('Live preview of build')) {
-                                        pullRequest.editComment(comment['id'], comment['body'])
+                                for (comment in pullRequest.comments) {
+                                    if (comment.body.contains("Live preview of build")) {
+                                        pullRequest.editComment(comment.id, commentBody)
                                         found = true
                                         break
                                     }
                                 }
                                 if (!found) {
-                                    pullRequest.comment(commentBody)
+                                    prComment = pullRequest.comment(commentBody)
+                                    echo "prComment.id = ${prComment.id}"
                                 }
                             }
                         }
@@ -207,6 +217,14 @@ pipeline {
     post {
         always {
             script {
+                // In cases where the error is not explanatory in Jenkins UI,
+                // uncomment this section to prevent BuildConfig from being destroyed when the pipeline finishes.
+                // You can "Proceed" this input from Jenkins job's logs.
+                //
+                //if (currentBuild.result == "FAILURE") {
+                //    input message: "Finished investigating failure?"
+                //}
+
                 if (previewResolution == "" || previewResolution.contains("Teardown")) {
                     deleteEverything(instanceName)
                 }
@@ -234,7 +252,7 @@ pipeline {
             script {
                 githubNotify status: "FAILURE", context: "build", description: "Pipeline failed!"
 
-                if (!needsPreview) {
+                if (needsPreview) {
                     githubNotify status: "FAILURE", context: "preview", description: "Pipeline failed!", targetUrl: " "
                 } else {
                     githubNotify status: "SUCCESS", context: "preview", description: "Skipped preview since it was not requested", targetUrl: " "

@@ -24,16 +24,16 @@ parameters:
   name: PORT
   required: true
   value: "8080"
-  # You shouldn't need to change the ROUTE_PREFIX  
+  # You shouldn't need to change the ROUTE_PREFIX as the Jenkinsfile sets its value.
 - name: ROUTE_PREFIX
   displayName: Auto-generated route prefix for .abar.cloud
   description: Must be unique across all projects, and contain only lower-case letters, numbers and dashes.
   required: true
-- displayName: Git Address
-  name: APP_GIT_ADDRESS
+  # You shouldn't need to change the APP_GIT_ADDRESS as the Jenkinsfile sets its value.
+  # To use ssh URLs you need to uncomment the sourceSecret in "BuildConfig > spec > source" below.
+- name: APP_GIT_ADDRESS
+  displayName: Git Address
   required: true
-  # Change this to the URL of your fork if you're trying this example  
-  value: http://github.com/abarcloud/hello-world.git
 
 objects:
 
@@ -130,5 +130,18 @@ objects:
       git:
         uri: ${APP_GIT_ADDRESS}
       type: Git
+      # Uncomment the following config if the Dockerfile is in a sub-directory in the git repository
+      #contextDir: my-app
+
+      # Uncomment the following config when fetching a private repository.
+      #
+      # The name of the secret that contains your private SSH Key. If you haven't
+      # added it AbarCloud, goto Resources > Secrets from the main menu then click on Create Secret.
+      # Select 'Source Secret' for Secret Type, give the key a name, 'SSH Key' for Authentication Type,
+      # upload your key and tick the 'Link secret to a service account' option, and select
+      # 'builder'. Put the key name here.
+      #
+      #sourceSecret:
+      #  name: SOURCE_SECRET_NAME_HERE
     strategy:
       type: Docker
