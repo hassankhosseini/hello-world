@@ -33,7 +33,7 @@ parameters:
   # To use ssh URLs you need to uncomment the sourceSecret in "BuildConfig > spec > source" below.
 - name: APP_GIT_ADDRESS
   displayName: Git Address
-  required: true
+  required: false
 
 objects:
 
