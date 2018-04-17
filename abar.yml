@@ -32,8 +32,9 @@ parameters:
 - displayName: Git Address
   name: APP_GIT_ADDRESS
   required: true
-  # Change this to the URL of your fork if you're trying this example  
-  value: http://github.com/abarcloud/hello-world.git
+  # This will be set via pipeline defined in Jenkinsfile.
+  # To use ssh URLs you need to uncomment sourceSecret in "BuildConfig > spec > source" definition below.
+  # value: git@github.com:abarcloud/hello-world.git
 
 objects:
 
@@ -130,5 +131,18 @@ objects:
       git:
         uri: ${APP_GIT_ADDRESS}
       type: Git
+      # Uncomment config below to use a sub-directory in the git repository
+      #contextDir: my-app
+
+      # Uncomment config below when fetching a private repository.
+      #
+      # The name of the secret that contains your private SSH Key. If you haven't
+      # added it AbarCloud, goto Resources > Secrets from the main menu then click on Create Secret.
+      # Select 'Source Secret' for Secret Type, give the key a name, 'SSH Key' for Authentication Type,
+      # upload your key and tick the 'Link secret to a service account' option, and select
+      # 'builder'. Put the key name here.
+      #
+      #sourceSecret:
+      #  name: SOURCE_SECRET_NAME_HERE
     strategy:
       type: Docker
