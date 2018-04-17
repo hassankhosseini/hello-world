@@ -63,7 +63,9 @@ pipeline {
                     gitCommit = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
                     gitShortCommit = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%h'").trim()
                     gitMessage = sh(returnStdout: true, script: "git log -n 1 --pretty=format:'%B'").trim()
-                    gitRemoteUrl = sh(returnStdout: true, script: "git config --get remote.origin.url").trim()
+                    if (!getBinding().hasVariable("gitRemoteUrl")) {
+                        gitRemoteUrl = sh(returnStdout: true, script: "git config --get remote.origin.url").trim()
+                    }
 
                     // Print variables
                     echo ("buildTarget = ${buildTarget}")

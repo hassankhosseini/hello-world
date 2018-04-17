@@ -32,9 +32,11 @@ parameters:
 - displayName: Git Address
   name: APP_GIT_ADDRESS
   required: true
+  # value: git@github.com:abarcloud/hello-world.git
+  #
+  # You shouldn't need to change this.
   # This will be set via pipeline defined in Jenkinsfile.
   # To use ssh URLs you need to uncomment sourceSecret in "BuildConfig > spec > source" definition below.
-  # value: git@github.com:abarcloud/hello-world.git
 
 objects:
 
