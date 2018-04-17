@@ -2,7 +2,7 @@ appName = "hello-world"
 
 // When using SSH repo URLs (e.g. for private repos), you need to uncomment and set the following variable.
 // You also need to set the SSH URL and the sourceSecret in "BuildConfig > spec > source" definition in abar.yml.
-// gitRemoteUrl = "git@github.com:abarcloud/hello-world.git"
+//gitRemoteUrl = "git@github.com:abarcloud/hello-world.git"
 
 def deleteEverything(instanceName) {
     openshift.withCluster() {
@@ -10,10 +10,6 @@ def deleteEverything(instanceName) {
             // Except imagestream
             openshift.selector("replicationcontroller,deployment,build,pod,buildconfig,deploymentconfig,service,route", [app: instanceName]).delete("--ignore-not-found")
         }
-    }
-
-    if (getBinding().hasVariable("prComment")) {
-        pullRequest.deleteComment(prComment.id)
     }
 }
 
