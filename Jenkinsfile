@@ -1,9 +1,7 @@
 appName = "hello-world"
 
-// Uncomment variable below to manually set source code repository for AbarCloud BuildConfig's
-// This is needed when Jenkins is fetching repository via https url but you'd need AbarCloud to fetch via ssh.
-// When using ssh URL you need to uncomment sourceSecret in "BuildConfig > spec > source" definition in abar.yml.
-//
+// When using SSH repo URLs (e.g. for private repos), you need to uncomment and set the following variable.
+// You also need to set the SSH URL and the sourceSecret in "BuildConfig > spec > source" definition in abar.yml.
 // gitRemoteUrl = "git@github.com:abarcloud/hello-world.git"
 
 def deleteEverything(instanceName) {
@@ -222,7 +220,7 @@ pipeline {
         always {
             script {
                 // In cases where the error is not explanatory in Jenkins UI,
-                // uncomment this section to prevent BuildConfig from destroying when pipeline finishes.
+                // uncomment this section to prevent BuildConfig from being destroyed when the pipeline finishes.
                 // You can "Proceed" this input from Jenkins job's logs.
                 //
                 //if (currentBuild.result == "FAILURE") {
